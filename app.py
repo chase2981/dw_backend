@@ -1,9 +1,19 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 import snowflake.connector
 import os
 import pandas as pd
 
 app = FastAPI()
+
+# Add this before defining routes
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 👈 Or restrict to ["http://localhost:8000"] if you want
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def get_snowflake_data():
     conn = snowflake.connector.connect(

@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GO AGGIE </title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                        brand: {
+                            red: '#e63946',
+                            dark: '#181818',
+                            light: '#ffffff'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .drop-zone {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            transition: border 0.3s ease;
+        }
+        .drop-zone.active {
+            border-color: #5D5CDE;
+        }
+        .dark .drop-zone {
+            border-color: #444;
+        }
+        .dark .drop-zone.active {
+            border-color: #5D5CDE;
+        }
+        .image-upload-container {
+            position: relative;
+            margin-top: 10px;
+        }
+        .image-upload-container img {
+            max-width: 100%;
+            max-height: 120px;
+            display: block;
+            margin: 0 auto;
+        }
+        .image-upload-container .remove-btn {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(0,0,0,0.5);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        .loading-spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #5D5CDE;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .dark .loading-spinner {
+            border-color: rgba(255, 255, 255, 0.1);
+            border-top-color: #5D5CDE;
+        }
+        .summary-section {
+            display: block;
+            width: 100%;
+            padding: 20px;
+            margin-bottom: 2px;
+            position: relative;
+        }
+        .section-header {
+            font-size: 1.2rem;
+            font-weight: 500;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .clock-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid #e63946;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .clock-hand {
+            position: absolute;
+            width: 2px;
+            height: 30px;
+            background-color: #e63946;
+            top: 10px;
+            left: 50%;
+            transform-origin: bottom;
+            transform: translateX(-50%) rotate(-45deg);
+        }
+        .text-shadow-on-image p,
+        .text-shadow-on-image span,
+        .text-shadow-on-image h2,
+        .text-shadow-on-image h3 {
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+        }
+    </style>
+</head>
+<body class="font-sans bg-gray-100 dark:bg-brand-dark dark:text-white transition-colors duration-200">
+    <div class="container mx-auto px-4 py-8 max-w-2xl">
+        <h1 class="text-3xl font-bold mb-6 text-center">
+            <span class="block">Sandwich Unwrapped</span>
+            <span class="block text-lg font-medium">BY Chase Gibbons | Andy Zeng</span>
+          </h1>
+          
+        
+        <!-- File Upload Section -->
+        <div id="upload-section" class="mb-8">
+            <div id="drop-zone" class="drop-zone cursor-pointer">
+                <p class="text-lg mb-2 text-white">Drag & drop your customer summary CSV file here</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 text-white">or</p>
+                <button id="browse-button" class="mt-2 px-4 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition">Browse Files</button>
+                <input type="file" id="file-input" accept=".csv" class="hidden">
+            </div>
+            <div id="file-info" class="mt-4 hidden">
+                <div class="flex items-center justify-between bg-green-50 dark:bg-green-900 p-3 rounded-md">
+                    <div class="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                        </svg>
+                        <span id="file-name" class="text-green-700 dark:text-green-300"></span>
+                    </div>
+                    <button id="remove-file" class="text-red-500 hover:text-red-700 dark:hover:text-red-300">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Customer Selection Section -->
+        <div id="customer-selection" class="mb-8 hidden">
+            <label for="customer-dropdown" class="block text-lg font-medium mb-2">Select a Customer:</label>
+            <div class="relative">
+                <select id="customer-dropdown" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary bg-white dark:bg-gray-800 text-base appearance-none">
+                    <option value="">Select a customer</option>
+                </select>
+                <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none">
+                    <svg class="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Image Management Section -->
+        <div id="image-management" class="mb-8 hidden">
+            <h2 class="text-xl font-bold mb-4">Customize Section Images</h2>
+            <div class="space-y-4">
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Header Background</label>
+                    <div class="flex items-center">
+                        <label for="header-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="header-file-name">No file chosen</span>
+                        <input type="file" id="header-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="header-image-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Customer Name Image</label>
+                    <div class="flex items-center">
+                        <label for="customer-name-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="customer-name-file-name">No file chosen</span>
+                        <input type="file" id="customer-name-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="customer-name-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">First Visit Date Image</label>
+                    <div class="flex items-center">
+                        <label for="first-visit-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="first-visit-file-name">No file chosen</span>
+                        <input type="file" id="first-visit-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="first-visit-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Last Visit Date Image</label>
+                    <div class="flex items-center">
+                        <label for="last-visit-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="last-visit-file-name">No file chosen</span>
+                        <input type="file" id="last-visit-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="last-visit-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Favorite Sandwich Image</label>
+                    <div class="flex items-center">
+                        <label for="favorite-sandwich-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="favorite-sandwich-file-name">No file chosen</span>
+                        <input type="file" id="favorite-sandwich-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="favorite-sandwich-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Sandwich Length Image</label>
+                    <div class="flex items-center">
+                        <label for="sandwich-length-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="sandwich-length-file-name">No file chosen</span>
+                        <input type="file" id="sandwich-length-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="sandwich-length-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Favorite Side Image</label>
+                    <div class="flex items-center">
+                        <label for="favorite-side-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="favorite-side-file-name">No file chosen</span>
+                        <input type="file" id="favorite-side-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="favorite-side-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Points Earned Image</label>
+                    <div class="flex items-center">
+                        <label for="points-earned-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="points-earned-file-name">No file chosen</span>
+                        <input type="file" id="points-earned-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="points-earned-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Products Purchased Image</label>
+                    <div class="flex items-center">
+                        <label for="products-purchased-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="products-purchased-file-name">No file chosen</span>
+                        <input type="file" id="products-purchased-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="products-purchased-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Favorite Employee Image</label>
+                    <div class="flex items-center">
+                        <label for="favorite-employee-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="favorite-employee-file-name">No file chosen</span>
+                        <input type="file" id="favorite-employee-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="favorite-employee-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Favorite Store Image</label>
+                    <div class="flex items-center">
+                        <label for="store-map-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="store-map-file-name">No file chosen</span>
+                        <input type="file" id="store-map-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="store-map-preview" class="image-upload-container"></div>
+                </div>
+                
+                <div class="p-4 border rounded-md bg-gray-50">
+                    <label class="block font-medium mb-2">Ordering Method Image</label>
+                    <div class="flex items-center">
+                        <label for="ordering-method-image" class="bg-indigo-500 hover:bg-indigo-600 text-white py-2 px-4 rounded-md cursor-pointer">Choose File</label>
+                        <span class="ml-3 text-gray-500" id="ordering-method-file-name">No file chosen</span>
+                        <input type="file" id="ordering-method-image" accept="image/*" class="hidden">
+                    </div>
+                    <div id="ordering-method-preview" class="image-upload-container"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Loading Indicator -->
+        <div id="loading" class="flex justify-center items-center py-12 hidden">
+            <div class="loading-spinner mr-3"></div>
+            <span>Loading customer data...</span>
+        </div>
+        
+        <!-- Customer Summary Visualization - Sam's Subs Version -->
+        <div id="summary-visualization" class="hidden">
+            <div class="max-w-md mx-auto border border-gray-200 dark:border-gray-700 overflow-hidden">
+                
+                <!-- 1. Header Background (Sam's Subs store with Totoro-like characters) -->
+                <div id="header-section" style="position: relative; height: 240px; background-size: cover; background-position: center; overflow: hidden;">
+                    <!-- The background image is set via JavaScript - Sam's Subs image -->
+                </div>
+                
+                <!-- 2. Customer Name Section -->
+                <div id="customer-name-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Hey <span id="customer-name" class="font-extrabold text-2xl text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">CUSTOMER</span>,</p>
+                        <p class="text-xl font-medium mt-2" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">thank you for allowing us to serve you</p>
+                    </div>
+                </div>
+                
+                <!-- 3. First Visit Date Section -->
+                <div id="first-visit-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">we first met at</p>
+                        <p id="first-visit-date" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">1/12/2023</p>
+                    </div>
+                </div>
+                
+                <!-- 4. Last Visit Date Section -->
+                <div id="last-visit-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">last time you visited us at</p>
+                        <p id="last-visit-date" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">1/12/2023</p>
+                        <p class="text-xl font-medium mt-2" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">we missed you</p>
+                    </div>
+                </div>
+                
+                <!-- 5. Favorite Sandwich Section -->
+                <div id="favorite-sandwich-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">FAVORITE SANDWICH?</p>
+                        <p id="favorite-sandwich" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">JURASSIC PORK</p>
+                    </div>
+                </div>
+                
+                <!-- 6. Sandwich Length Section -->
+                <div id="sandwich-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p id="sandwich-inches" class="text-4xl font-extrabold mb-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">18</p>
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">INCHES OF SANDWICH EATEN</p>
+                        <p class="text-sm mt-3 max-w-xs mx-auto" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">In 2023, Sam's Subs provided over 35,760 inches of sandwich</p>
+                    </div>
+                </div>
+                
+                <!-- 7. Favorite Side Section -->
+                <div id="favorite-side-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">SIDEKICK OF CHOICE?</p>
+                        <p id="favorite-side" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">SODA</p>
+                    </div>
+                </div>
+                
+                <!-- 8. Points Earned Section -->
+                <div id="points-earned-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p id="rewards-earned" class="text-4xl font-extrabold mb-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">38.96</p>
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">REWARDS EARNED</p>
+                        <p class="text-sm mt-2" style="text-shadow: 1px 1px 3px rgba(0,0,0,0.8);">It is amazing!</p>
+                    </div>
+                </div>
+                
+                <!-- 9. Products Purchased Section -->
+                <div id="products-purchased-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">You ordered</p>
+                        <p id="products-purchased" class="text-4xl font-extrabold my-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">4</p>
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">products in 2023!</p>
+                    </div>
+                </div>
+                
+                <!-- 10. Favorite Employee Section -->
+                <div id="favorite-employee-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p id="favorite-employee" class="text-3xl font-extrabold mb-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Bonny Lafayette</p>
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">would love to work with you again in 2024!</p>
+                    </div>
+                </div>
+                
+                <!-- 11. Favorite Store Section -->
+                <div id="favorite-store-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">YOUR FAVORITE STORE</p>
+                        <p id="favorite-store" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">49006 Barby Road,Memphis,TN</p>
+                    </div>
+                </div>
+                
+                <!-- 12. Ordering Method Section -->
+                <div id="ordering-method-section" class="summary-section py-8" style="position: relative; background-size: cover; background-position: center; min-height: 160px;">
+                    <div style="position: relative; z-index: 2;" class="px-4 text-white text-center">
+                        <p class="text-xl font-medium" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">you normally ordered from us by</p>
+                        <p id="ordering-method" class="text-3xl font-extrabold mt-2 text-red-500" style="text-shadow: 2px 2px 4px rgba(0,0,0,0.8);">Online</p>
+                    </div>
+                </div>
+                
+            </div>
+        </div>
+        
+        <!-- No Data Message -->
+        <div id="no-data" class="hidden text-center py-12">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4" />
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900 dark:text-gray-100">No customer data</h3>
+            <p class="mt-1 text-gray-500 dark:text-gray-400">Please select a customer from the dropdown to view their summary.</p>
+        </div>
+        
+        <!-- Download Summary Button -->
+        <div id="download-section" class="mt-6 text-center hidden">
+            <button id="download-button" class="px-6 py-2 bg-primary text-white rounded-md hover:bg-opacity-90 transition">
+                Download Summary
+            </button>
+        </div>
+        
+        <!-- Script for html2canvas - needed for screenshot functionality -->
+        <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    </div>
+
+    <script>
+        // Check for dark mode preference
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+
+        // --- Configuration Objects ---
+
+        const imageConfig = {
+            header: { inputId: 'header-image', previewId: 'header-image-preview', fileNameId: 'header-file-name', targetId: 'header-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/a861ac60d93578240cc269676fb27230195e79de79e35c7c368d22fab7b46acd?w=1024&h=768" },
+            customerName: { inputId: 'customer-name-image', previewId: 'customer-name-preview', fileNameId: 'customer-name-file-name', targetId: 'customer-name-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/281ffdf8ffa97cde2dfd65aa793bf00a94de91a6f36d4030f8f82d64750240e6?w=1024&h=768" },
+            firstVisit: { inputId: 'first-visit-image', previewId: 'first-visit-preview', fileNameId: 'first-visit-file-name', targetId: 'first-visit-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/ac44aa0f7e489353090b9c08e2d1ef2a00edf0845b709832d99781c0f780df11?w=1024&h=768" },
+            lastVisit: { inputId: 'last-visit-image', previewId: 'last-visit-preview', fileNameId: 'last-visit-file-name', targetId: 'last-visit-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/6b7d418ccd518ce942548616ef6b9df7fc910c57ea8bf36c5a31a5c05b1f9e63?w=1024&h=768" },
+            favoriteSandwich: { inputId: 'favorite-sandwich-image', previewId: 'favorite-sandwich-preview', fileNameId: 'favorite-sandwich-file-name', targetId: 'favorite-sandwich-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/3d42880ff7e38f040447f81a7062da5a0f57964c74a9edec2dec1d55e0ed69c6?w=1024&h=768" },
+            sandwichLength: { inputId: 'sandwich-length-image', previewId: 'sandwich-length-preview', fileNameId: 'sandwich-length-file-name', targetId: 'sandwich-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/b620dac0aee2bc56a81388a26a8ff87a1378b08ed4f9e967816fddaac340f0eb?w=1024&h=768" },
+            favoriteSide: { inputId: 'favorite-side-image', previewId: 'favorite-side-preview', fileNameId: 'favorite-side-file-name', targetId: 'favorite-side-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/fd7d2d645746d76fdc54728ab2cdca578a595e33e02e7c7a5f7c1bfb97bc42df?w=1024&h=768" },
+            pointsEarned: { inputId: 'points-earned-image', previewId: 'points-earned-preview', fileNameId: 'points-earned-file-name', targetId: 'points-earned-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/7cf08eedd1c87492839bd3668975ae46332a6c942c8836b147813719e9b79b18?w=1024&h=768" },
+            productsPurchased: { inputId: 'products-purchased-image', previewId: 'products-purchased-preview', fileNameId: 'products-purchased-file-name', targetId: 'products-purchased-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/cd812ee6eece6c719ce41fdef5ba1c50c46a9c0c643bbccc752b3dbf3a933b40?w=1024&h=768" },
+            favoriteEmployee: { inputId: 'favorite-employee-image', previewId: 'favorite-employee-preview', fileNameId: 'favorite-employee-file-name', targetId: 'favorite-employee-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/cb6bd1c97dce95287751e987a944508407fc46454f35c4839cdca15b4e8a93ae?w=1024&h=768" },
+            storeMap: { inputId: 'store-map-image', previewId: 'store-map-preview', fileNameId: 'store-map-file-name', targetId: 'favorite-store-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/23d6db00dc119309eb55796581ef59eea554d7def79864eb32b838da96b65f6d?w=1024&h=768" },
+            orderingMethod: { inputId: 'ordering-method-image', previewId: 'ordering-method-preview', fileNameId: 'ordering-method-file-name', targetId: 'ordering-method-section', defaultUrl: "https://pfst.cf2.poecdn.net/base/image/24f2adaf55c9140cd564446b042f62b17c53de43084662a54f8b0b86cba2d1f0?w=1024&h=768" }
+        };
+
+        const customImages = {};
+
+        // --- DOM Elements (Grouped) ---
+        const dom = {
+            dropZone: document.getElementById('drop-zone'),
+            fileInput: document.getElementById('file-input'),
+            browseButton: document.getElementById('browse-button'),
+            fileInfo: document.getElementById('file-info'),
+            fileName: document.getElementById('file-name'),
+            removeFile: document.getElementById('remove-file'),
+            customerSelection: document.getElementById('customer-selection'),
+            customerDropdown: document.getElementById('customer-dropdown'),
+            imageManagement: document.getElementById('image-management'),
+            summaryVisualization: document.getElementById('summary-visualization'),
+            loadingIndicator: document.getElementById('loading'),
+            noDataMessage: document.getElementById('no-data'),
+            downloadSection: document.getElementById('download-section'),
+            downloadButton: document.getElementById('download-button'),
+            // Cache other elements as needed, potentially dynamically based on config
+        };
+
+        // Store the parsed data
+        let customersData = [];
+
+        // --- Helper Functions ---
+
+        function formatDate(dateStr) {
+            if (!dateStr) return "Unknown";
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric' });
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
+        // Helper function to create image previews with remove button
+        function createImagePreview(imageUrl, type) {
+            const config = imageConfig[type];
+            const previewElement = document.getElementById(config.previewId);
+            if (!previewElement) return;
+
+            previewElement.innerHTML = `
+                <div class="relative">
+                    <img src="${imageUrl}" alt="${type} image" class="mt-2 max-h-24 mx-auto">
+                    <button class="remove-btn" data-type="${type}">×</button>
+                </div>
+            `;
+
+            // Add remove button listener
+            previewElement.querySelector('.remove-btn').addEventListener('click', function() {
+                removeImage(this.dataset.type);
+            });
+        }
+
+        // Add/Remove text shadow class
+        function updateTextShadow(element, add) {
+            if (element) {
+                element.classList.toggle('text-shadow-on-image', add);
+            }
+        }
+
+        // Update section with image
+        function updateSectionWithImage(type, imageUrl) {
+            const config = imageConfig[type];
+            const targetElement = document.getElementById(config.targetId);
+            if (!targetElement) return;
+
+            targetElement.style.backgroundImage = `url(${imageUrl})`;
+            targetElement.style.backgroundSize = 'cover';
+            targetElement.style.backgroundPosition = 'center';
+            updateTextShadow(targetElement, true); // Add shadow when image is present
+        }
+
+         // Remove uploaded image
+        function removeImage(type) {
+            const config = imageConfig[type];
+            const previewElement = document.getElementById(config.previewId);
+            const targetElement = document.getElementById(config.targetId);
+            const inputElement = document.getElementById(config.inputId);
+            const fileNameElement = document.getElementById(config.fileNameId);
+
+            customImages[type] = null;
+            if (previewElement) previewElement.innerHTML = '';
+            if (inputElement) inputElement.value = '';
+            if (fileNameElement) fileNameElement.textContent = 'No file chosen';
+
+            // Restore default image and preview
+            if (config.defaultUrl) {
+                updateSectionWithImage(type, config.defaultUrl);
+                createImagePreview(config.defaultUrl, type);
+            } else if (targetElement) {
+                // Reset the section background/content
+                targetElement.style.backgroundImage = '';
+                targetElement.style.backgroundSize = '';
+                targetElement.style.backgroundPosition = '';
+                updateTextShadow(targetElement, false); // Remove shadow
+            }
+        }
+
+        // Handle image uploads (Generic)
+        function handleImageUpload(event, type) {
+            const file = event.target.files[0];
+            if (!file || !file.type.startsWith('image/')) {
+                if (file) alert('Please upload an image file.');
+                // If user cancels file selection, keep the current/default image
+                // Find the corresponding elements using the config
+                const config = imageConfig[type];
+                const inputElement = document.getElementById(config.inputId);
+                const fileNameElement = document.getElementById(config.fileNameId);
+                 // Reset file input and name if needed
+                if (inputElement) inputElement.value = '';
+                if (fileNameElement) fileNameElement.textContent = 'No file chosen';
+                // Restore default preview if custom image was previously set and now removed
+                if (customImages[type]) {
+                     removeImage(type); // This will restore default if available
+                }
+                return;
+            }
+
+            const reader = new FileReader();
+            const config = imageConfig[type];
+            const previewElement = document.getElementById(config.previewId);
+            const fileNameElement = document.getElementById(config.fileNameId);
+
+            reader.onload = function(e) {
+                const imageUrl = e.target.result;
+                customImages[type] = imageUrl;
+                createImagePreview(imageUrl, type);
+                updateSectionWithImage(type, imageUrl);
+                if (fileNameElement) fileNameElement.textContent = file.name;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Load default images using config
+        function loadDefaultImages() {
+            for (const type in imageConfig) {
+                const config = imageConfig[type];
+                if (config.defaultUrl) {
+                    // Check if there's already a custom image loaded (e.g., from previous session/state)
+                     if (!customImages[type]) {
+                         updateSectionWithImage(type, config.defaultUrl);
+                         createImagePreview(config.defaultUrl, type);
+                     } else {
+                         // If a custom image exists, make sure its preview and section are displayed correctly
+                         updateSectionWithImage(type, customImages[type]);
+                         createImagePreview(customImages[type], type);
+                     }
+                }
+                 // Ensure file name display is correct (might be 'No file chosen' initially)
+                 const fileNameElement = document.getElementById(config.fileNameId);
+                 const inputElement = document.getElementById(config.inputId);
+                 if (fileNameElement && (!inputElement || !inputElement.files || inputElement.files.length === 0)) {
+                     fileNameElement.textContent = 'No file chosen';
+                 }
+            }
+            // Set background for the drop zone
+            if (dom.dropZone && imageConfig.header.defaultUrl) {
+                dom.dropZone.style.backgroundImage = `url(${imageConfig.header.defaultUrl})`;
+                dom.dropZone.style.backgroundSize = 'cover';
+                dom.dropZone.style.backgroundPosition = 'center 20%';
+                // Add a slight overlay for text readability (optional, adjust color/opacity)
+                dom.dropZone.style.position = 'relative'; // Needed for pseudo-element
+                // You might need to add a ::before pseudo-element via CSS for a better overlay
+                // For now, let's just set the background
+            }
+        }
+
+        // --- Core Logic Functions ---
+
+        // --- CSV Handling & Processing ---
+
+        // Configuration for mapping summary sections/elements to CSV data columns
+        // 'dataKey' should match the header in the CSV file
+        const summaryConfig = [
+            { sectionId: 'customer-name-section', elementId: 'customer-name', dataKey: 'CUSTOMERNAME' },
+            { sectionId: 'first-visit-section', elementId: 'first-visit-date', dataKey: 'THE_FIRST_DAY_WE_MET', format: formatDate },
+            { sectionId: 'last-visit-section', elementId: 'last-visit-date', dataKey: 'THE_LAST_DAY_WE_MET', format: formatDate },
+            { sectionId: 'favorite-sandwich-section', elementId: 'favorite-sandwich', dataKey: 'YOUR_FAVORITE_SANDWICH' },
+            { sectionId: 'sandwich-section', elementId: 'sandwich-inches', dataKey: 'THE_TOTAL_LENGTH_OF_SANDWICH_YOU_PURCHASED_FROM_US', checkValue: '0' },
+            { sectionId: 'favorite-side-section', elementId: 'favorite-side', dataKey: 'YOUR_FAVORITE_SIDE' },
+            { sectionId: 'points-earned-section', elementId: 'rewards-earned', dataKey: 'THE_POINTS_EARNED', format: (val) => parseFloat(val || 0).toFixed(0), checkValue: '0' },
+            { sectionId: 'products-purchased-section', elementId: 'products-purchased', dataKey: 'THE_NUMBER_OF_PRODUCTS_YOU_PURCHASED' },
+            { sectionId: 'favorite-employee-section', elementId: 'favorite-employee', dataKey: 'THE_EMPLOYEE_SERVED_YOU_THE_MOST' },
+            { sectionId: 'favorite-store-section', elementId: 'favorite-store', dataKey: 'THE_STORE_YOU_WENT_MOST' },
+            { sectionId: 'ordering-method-section', elementId: 'ordering-method', dataKey: 'THE_COMMON_WAY_YOU_ORDER_FROM_US' },
+        ];
+
+        function handleFiles(files) {
+            const file = files[0];
+            // Check if the dropped/selected file is a CSV
+            if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+                alert('Please upload a CSV file.');
+                return;
+            }
+
+            dom.fileName.textContent = file.name;
+            dom.fileInfo.classList.remove('hidden');
+
+            // Use PapaParse library to parse the CSV file content
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    processData(results.data);
+                },
+                error: function(error) {
+                    console.error('Error parsing CSV:', error);
+                    alert('Error parsing the CSV file. Please check the format.');
+                    resetFileUpload();
+                }
+            });
+        }
+
+        function processData(data) {
+            // Filter the parsed CSV data, keeping rows with a CUSTOMERNAME
+            customersData = data.filter(row => row.CUSTOMERNAME && row.CUSTOMERNAME.trim() !== '');
+            if (customersData.length === 0) {
+                alert('No valid customer data found in the CSV file.');
+                resetFileUpload();
+                return;
+            }
+            populateCustomerDropdown(customersData);
+            dom.customerSelection.classList.remove('hidden');
+            dom.imageManagement.classList.remove('hidden');
+            // Display summary for the first customer or 'select' state initially
+            handleCustomerSelection(); // Call to potentially show default or 'no data'
+        }
+
+        function populateCustomerDropdown(data) {
+            // Clear existing options except the first one ("Select a customer")
+            while (dom.customerDropdown.options.length > 1) {
+                dom.customerDropdown.remove(1);
+            }
+            data.forEach(customer => {
+                const option = document.createElement('option');
+                option.value = customer.CUSTOMERNAME;
+                option.textContent = customer.CUSTOMERNAME;
+                dom.customerDropdown.appendChild(option);
+            });
+             // Reset to "Select a customer"
+             dom.customerDropdown.selectedIndex = 0;
+        }
+
+        function handleCustomerSelection() {
+            const selectedCustomerName = dom.customerDropdown.value;
+
+            if (!selectedCustomerName) {
+                // Hide all sections, show 'no data' message
+                summaryConfig.forEach(item => {
+                    const section = document.getElementById(item.sectionId);
+                    if (section) section.style.display = 'none';
+                });
+                dom.noDataMessage.classList.remove('hidden');
+                dom.downloadSection.classList.add('hidden');
+                dom.loadingIndicator.classList.add('hidden');
+                dom.summaryVisualization.classList.add('hidden'); // Explicitly hide summary
+                return;
+            }
+
+            dom.loadingIndicator.classList.remove('hidden');
+            dom.noDataMessage.classList.add('hidden');
+            dom.downloadSection.classList.add('hidden'); // Hide download until loaded
+
+            // Use setTimeout for visual feedback, although data lookup is fast
+            setTimeout(() => {
+                // Find the specific customer's data within the parsed CSV data array
+                const customer = customersData.find(c => c.CUSTOMERNAME === selectedCustomerName);
+                if (customer) {
+                    dom.summaryVisualization.classList.remove('hidden'); // Show summary visualization
+                    displayCustomerSummary(customer);
+                    dom.downloadSection.classList.remove('hidden');
+                } else {
+                    console.error("Customer not found:", selectedCustomerName);
+                    dom.noDataMessage.classList.remove('hidden');
+                }
+                dom.loadingIndicator.classList.add('hidden');
+            }, 300); // Short delay
+        }
+
+         // Display the customer summary using config
+        function displayCustomerSummary(customer) {
+            // This function receives a single customer object (a row from the CSV)
+            if (!customer) {
+                console.error('No customer data provided to displayCustomerSummary');
+                 // Ensure all sections are hidden if no customer is found/selected
+                 summaryConfig.forEach(item => {
+                     const section = document.getElementById(item.sectionId);
+                     if (section) section.style.display = 'none';
+                 });
+                dom.noDataMessage.classList.remove('hidden'); // Show no data message
+                return;
+            }
+            console.log("Displaying data for customer:", customer);
+            dom.noDataMessage.classList.add('hidden'); // Ensure 'no data' message is hidden
+
+            summaryConfig.forEach(item => {
+                const section = document.getElementById(item.sectionId);
+                const element = document.getElementById(item.elementId);
+                if (!section || !element) {
+                     console.warn(`Missing section or element for config:`, item);
+                    return;
+                };
+
+                // Access data from the customer object using the key defined in summaryConfig (which corresponds to a CSV column header)
+                let value = customer[item.dataKey];
+                let displayValue = value;
+
+                // Apply formatting if specified
+                if (item.format && typeof item.format === 'function') {
+                    displayValue = item.format(value);
+                }
+
+                 // Check if the section should be hidden based on value or formatted value
+                 let hideSection = !value || (item.checkValue && displayValue === item.checkValue);
+
+                if (hideSection) {
+                    section.style.display = 'none';
+                } else {
+                    section.style.display = 'block';
+                     // Ensure displayValue is not null/undefined before setting textContent
+                     element.textContent = displayValue !== null && displayValue !== undefined ? displayValue : '';
+                }
+            });
+        }
+
+        function downloadSummary() {
+            const downloadBtn = dom.downloadButton;
+            const originalBtnText = downloadBtn.innerText;
+            downloadBtn.innerText = 'Generating image...';
+            downloadBtn.disabled = true;
+
+            // Find the container *inside* the main visualization div
+            const summaryElement = dom.summaryVisualization.querySelector(':scope > div'); // Target the direct child div
+
+            if (!summaryElement) {
+                 console.error("Could not find the summary content element for download.");
+                 alert('Error: Summary content not found.');
+                 downloadBtn.innerText = originalBtnText;
+                 downloadBtn.disabled = false;
+                 return;
+             }
+
+            html2canvas(summaryElement, {
+                logging: false,
+                allowTaint: true,
+                useCORS: true, // Important for external images
+                 backgroundColor: window.getComputedStyle(summaryElement).backgroundColor // Use computed background
+                // scale: window.devicePixelRatio // Optional: improve resolution on high-DPI screens
+            }).then(canvas => {
+                canvas.toBlob(function(blob) {
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    const customerNameElement = document.getElementById('customer-name'); // Get the name element directly
+                     const customerName = customerNameElement ? customerNameElement.textContent.trim().toLowerCase().replace(/\s+/g, '-') : 'customer'; // Sanitize name
+                    link.download = `sandwich-summary-${customerName || 'selected'}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(link.href);
+                    downloadBtn.innerText = originalBtnText;
+                    downloadBtn.disabled = false;
+                }, 'image/png');
+            }).catch(err => {
+                console.error('Error generating image with html2canvas:', err);
+                alert('Failed to generate image. Check console for errors.');
+                downloadBtn.innerText = originalBtnText;
+                downloadBtn.disabled = false;
+            });
+        }
+
+        function resetFileUpload() {
+            dom.fileInput.value = '';
+            dom.fileInfo.classList.add('hidden');
+            dom.customerSelection.classList.add('hidden');
+            dom.imageManagement.classList.add('hidden');
+            dom.summaryVisualization.classList.add('hidden');
+            dom.downloadSection.classList.add('hidden');
+            dom.noDataMessage.classList.add('hidden'); // Ensure this is hidden too
+
+            while (dom.customerDropdown.options.length > 1) {
+                dom.customerDropdown.remove(1);
+            }
+            dom.customerDropdown.selectedIndex = 0;
+
+            customersData = [];
+            Object.keys(customImages).forEach(key => customImages[key] = null);
+
+             // Reset images and previews using the config
+             for (const type in imageConfig) {
+                 removeImage(type); // This handles resetting inputs, names, and restoring defaults
+             }
+            // Hide all summary sections explicitly
+             displayCustomerSummary(null); // Pass null to hide sections
+        }
+
+        // --- End CSV Handling & Processing ---
+
+
+        // --- User Interaction & Display Logic ---
+
+        function handleFileSelection(e) {
+            const files = e.target.files;
+            if (files.length) {
+                handleFiles(files);
+            }
+        }
+
+        // Initialize the app on DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        function initializeApp() {
+            // File Upload Listeners
+            dom.browseButton.addEventListener('click', () => dom.fileInput.click());
+            dom.fileInput.addEventListener('change', handleFileSelection);
+            dom.dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dom.dropZone.classList.add('active'); });
+            dom.dropZone.addEventListener('dragleave', () => dom.dropZone.classList.remove('active'));
+            dom.dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dom.dropZone.classList.remove('active');
+                if (e.dataTransfer.files.length) {
+                    handleFiles(e.dataTransfer.files);
+                }
+            });
+            dom.removeFile.addEventListener('click', resetFileUpload);
+
+            // Customer Selection Listener
+            dom.customerDropdown.addEventListener('change', handleCustomerSelection);
+
+            // Download Button Listener
+            if (dom.downloadButton) {
+                dom.downloadButton.addEventListener('click', downloadSummary);
+            } else {
+                 console.warn("Download button not found.");
+            }
+
+            // Image Upload Listeners (using config)
+            for (const type in imageConfig) {
+                const config = imageConfig[type];
+                const inputElement = document.getElementById(config.inputId);
+                if (inputElement) {
+                    inputElement.addEventListener('change', (e) => handleImageUpload(e, type));
+                } else {
+                     console.warn(`Image input element not found for type: ${type} (ID: ${config.inputId})`);
+                }
+            }
+
+            // Load default images and initial state
+            loadDefaultImages();
+        }
+    </script>
+</body>
+</html>
