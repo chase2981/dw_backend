@@ -153,6 +153,11 @@
                     </button>
                 </div>
             </div>
+            <div class="mt-4 text-center">
+                <button id="pull-snowflake" class="mt-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-opacity-90 transition">
+                    Pull from Snowflake API
+                </button>
+            </div>
         </div>
         
         <!-- Customer Selection Section -->
@@ -907,6 +912,31 @@
             // Load default images and initial state
             loadDefaultImages();
         }
+
+        document.getElementById('pull-snowflake').addEventListener('click', () => {
+    dom.loadingIndicator.classList.remove('hidden');
+    fetch('https://dw-backend-iddl.onrender.com/data') // Replace with your actual endpoint
+        .then(res => res.json())
+        .then(data => {
+            customersData = data.filter(row => row.CUSTOMERNAME && row.CUSTOMERNAME.trim() !== '');
+            if (customersData.length === 0) {
+                alert('No valid customer data returned from Snowflake.');
+                return;
+            }
+            populateCustomerDropdown(customersData);
+            dom.customerSelection.classList.remove('hidden');
+            dom.imageManagement.classList.remove('hidden');
+            handleCustomerSelection();
+        })
+        .catch(err => {
+            console.error("Snowflake fetch error:", err);
+            alert('Failed to fetch data from Snowflake API.');
+        })
+        .finally(() => {
+            dom.loadingIndicator.classList.add('hidden');
+        });
+});
+
     </script>
 </body>
 </html>
